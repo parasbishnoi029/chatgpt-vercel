@@ -107,12 +107,17 @@ function toggleTheme() {
 if (localStorage.token && localStorage.email) showApp();
 
 /* ===== LOGIN ===== */
+<script>
 async function login() {
   const email = document.getElementById("email").value.trim();
-  if (!email) return alert("Enter email");
+  if (!email) {
+    alert("Enter email");
+    return;
+  }
 
   let password = null;
 
+  // 🔐 ADMIN PASSWORD PROMPT
   if (email === "admin@brainaura.com") {
     password = prompt("Enter admin password");
     if (!password) return;
@@ -131,15 +136,24 @@ async function login() {
     return;
   }
 
+  // ✅ SAVE EMAIL
   localStorage.email = email;
 
-  if (data.role === "admin") {
+  // ✅ ADMIN REDIRECT (THIS IS THE LINE YOU ASKED ABOUT)
+  if (email === "admin@brainaura.com") {
     location.href = "/admin.html";
     return;
   }
 
+  // 👤 NORMAL USER
   showApp();
 }
+
+function showApp() {
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+}
+
 
 
 /* ===== SHOW CHAT ===== */
@@ -184,4 +198,5 @@ async function send() {
 
 </body>
 </html>
+
 
