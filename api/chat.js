@@ -8,20 +8,28 @@ const API_KEYS = [
 const conversations = {};
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "POST only" });
+  }
 
   const { message, sessionId } = req.body;
-  if (!message || !sessionId) return res.status(400).end();
+  if (!message || !sessionId) {
+    return res.status(400).json({ error: "Missing data" });
+  }
 
-  if (!conversations[sessionId]) conversations[sessionId] = [];
+  if (!conversations[sessionId]) {
+    conversations[sessionId] = [];
+  }
 
-  conversations[sessionId].push({ role: "user", content: message });
+  conversations[sessionId].push(message);
   conversations[sessionId] = conversations[sessionId].slice(-10);
 
   for (const key of API_KEYS) {
+    if (!key) continue;
+
     try {
-      const openaiRes = await fetch(
-        "https://api.openai.com/v1/chat/completions",
+      const response = await fetch(
+        "https://api.openai.com/v1/responses",
         {
           method: "POST",
           headers: {
@@ -29,60 +37,39 @@ export default async function handler(req, res) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: conversations[sessionId],
-            stream: true
+            model: "gpt-4.1-mini",
+            input: conversations[sessionId].join("\n")
           })
         }
       );
 
-      // 🔥 CRITICAL HEADERS (THIS FIXES IT)
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive"
-      });
-
-      res.flushHeaders(); // 🚨 REQUIRED ON VERCEL
-
-      const reader = openaiRes.body.getReader();
-      const decoder = new TextDecoder();
-      let fullReply = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.replace("data: ", "").trim();
-            if (data === "[DONE]") continue;
-
-            const json = JSON.parse(data);
-            const token = json.choices?.[0]?.delta?.content;
-            if (token) {
-              fullReply += token;
-              res.write(token); // 🔥 STREAM TOKEN
-            }
-          }
-        }
+      // 🔴 CRITICAL CHECK
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("OPENAI ERROR:", errText);
+        continue;
       }
 
-      conversations[sessionId].push({
-        role: "assistant",
-        content: fullReply
+      const data = await response.json();
+
+      if (!data.output_text) {
+        console.error("NO OUTPUT:", data);
+        continue;
+      }
+
+      conversations[sessionId].push(data.output_text);
+
+      return res.status(200).json({
+        reply: data.output_text
       });
 
-      res.end();
-      return;
-
     } catch (err) {
+      console.error("FETCH ERROR:", err);
       continue;
     }
   }
 
-  res.status(500).end("All API keys failed");
+  return res.status(500).json({
+    error: "All API keys failed (billing or invalid key)"
+  });
 }
