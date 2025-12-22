@@ -11,6 +11,38 @@ async function getDB() {
   return client;
 }
 
+async function callOpenAI(apiKey, prompt) {
+  const res = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      input: prompt
+    })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error("OpenAI key failed:", data);
+    return null;
+  }
+
+  let reply = "";
+  for (const item of data.output ?? []) {
+    for (const c of item.content ?? []) {
+      if (c.type === "output_text") {
+        reply += c.text;
+      }
+    }
+  }
+
+  return reply || null;
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -24,7 +56,6 @@ export default async function handler(req, res) {
 
     const { email } = jwt.verify(token, process.env.JWT_SECRET);
     const { message } = req.body;
-
     if (!message) {
       return res.status(400).json({ error: "Message required" });
     }
@@ -41,7 +72,7 @@ export default async function handler(req, res) {
       createdAt: new Date()
     });
 
-    // Load last 10 messages as context
+    // Load last 10 messages
     const history = await chats
       .find({ email })
       .sort({ createdAt: 1 })
@@ -50,50 +81,24 @@ export default async function handler(req, res) {
 
     const prompt = history.map(m => m.content).join("\n");
 
+    // 🔁 TRY BOTH KEYS
     const keys = [
       process.env.OPENAI_API_KEY_1,
       process.env.OPENAI_API_KEY_2
     ];
 
-    let reply = "";
-
+    let reply = null;
     for (const key of keys) {
       if (!key) continue;
-
-      try {
-        const r = await fetch("https://api.openai.com/v1/responses", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "gpt-4.1-mini",
-            input: prompt
-          })
-        });
-
-        const data = await r.json();
-        if (!r.ok) continue;
-
-        for (const item of data.output || []) {
-          for (const c of item.content || []) {
-            if (c.type === "output_text") {
-              reply += c.text;
-            }
-          }
-        }
-
-        if (reply) break;
-      } catch {
-        continue;
-      }
+      reply = await callOpenAI(key, prompt);
+      if (reply) break;
     }
 
     if (!reply) {
       return res.status(500).json({ error: "AI unavailable" });
     }
 
+    // Save assistant reply
     await chats.insertOne({
       email,
       role: "assistant",
@@ -101,10 +106,10 @@ export default async function handler(req, res) {
       createdAt: new Date()
     });
 
-    res.status(200).json({ reply });
+    return res.status(200).json({ reply });
 
   } catch (err) {
-    console.error("CHAT ERROR:", err);
-    res.status(500).json({ error: "Server crash" });
+    console.error("SERVER ERROR:", err);
+    return res.status(500).json({ error: "Server crash" });
   }
 }
