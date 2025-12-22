@@ -191,14 +191,17 @@
 
     const typingBubble = addTyping();
 
+    // 🔥 FETCH BACKEND
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, sessionId })
     });
 
+    // 🔥 STREAM RESPONSE (THIS IS YOUR CODE)
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
+
     typingBubble.innerText = "";
 
     while (true) {
@@ -210,5 +213,7 @@
   }
 </script>
 
+
 </body>
 </html>
+
