@@ -16,7 +16,6 @@ export default async function handler(req, res) {
   const { message } = req.body;
   if (!message) return res.status(400).end();
 
-  // Save user message
   await chats.insertOne({
     email,
     role: "user",
@@ -24,7 +23,6 @@ export default async function handler(req, res) {
     createdAt: new Date()
   });
 
-  // Load last 10 messages (memory)
   const history = await chats
     .find({ email })
     .sort({ createdAt: 1 })
@@ -33,7 +31,6 @@ export default async function handler(req, res) {
 
   const prompt = history.map(m => m.content).join("\n");
 
-  // Streaming headers
   res.writeHead(200, {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "no-cache",
@@ -45,10 +42,8 @@ export default async function handler(req, res) {
     process.env.OPENAI_API_KEY_2
   ];
 
-  // Try OpenAI keys one by one
   for (const key of keys) {
     if (!key) continue;
-
     try {
       const r = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
@@ -76,7 +71,6 @@ export default async function handler(req, res) {
           res.write(chunk);
         }
 
-        // Save assistant reply
         await chats.insertOne({
           email,
           role: "assistant",
@@ -87,9 +81,7 @@ export default async function handler(req, res) {
         res.end();
         return;
       }
-    } catch {
-      continue; // try next key
-    }
+    } catch {}
   }
 
   res.write("AI unavailable");
