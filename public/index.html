@@ -1,21 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Test Continue</title>
+<meta charset="UTF-8" />
+<title>BrainAura</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+:root {
+  --bg:#0f0f1a; --bg2:#1b1b3a; --card:#16162a;
+  --text:#fff; --muted:#b8b8d4;
+}
+.light {
+  --bg:#f4f6fb; --bg2:#e8ebf5; --card:#fff;
+  --text:#111; --muted:#555;
+}
+* { box-sizing:border-box; font-family:Arial }
+body {
+  margin:0; height:100vh;
+  background:linear-gradient(135deg,var(--bg),var(--bg2));
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text);
+}
+.login, .app {
+  background:var(--card); padding:28px;
+  border-radius:16px; width:100%; max-width:380px;
+}
+.app { display:none; max-width:820px; height:90vh; flex-direction:column }
+input, textarea {
+  width:100%; padding:12px; border-radius:10px;
+  border:none; margin-bottom:12px;
+}
+button {
+  padding:12px; border:none; border-radius:10px;
+  cursor:pointer; background:#6a5cff; color:white;
+}
+header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px;
+}
+.chat { flex:1; overflow:auto }
+.bubble {
+  padding:10px; margin:6px 0; border-radius:10px;
+}
+.user { background:#6a5cff; align-self:flex-end }
+.ai { background:#222 }
+footer { display:flex; gap:8px }
+.toggle { background:none; font-size:18px }
+</style>
 </head>
-<body style="background:#111;color:white;padding:40px;font-size:18px">
 
-<h2>Continue Button Test</h2>
+<body>
 
-<input id="email" placeholder="email">
-<br><br>
+<!-- LOGIN -->
+<div id="login" class="login">
+  <h2>BrainAura</h2>
+  <p>Enter email to continue</p>
+  <input id="email" type="email" placeholder="Email" />
+  <button type="button" onclick="login()">Continue</button>
+</div>
 
-<button type="button" onclick="login()">Continue</button>
+<!-- CHAT -->
+<div id="app" class="app">
+  <header>
+    <div>
+      <strong id="userEmail"></strong><br>
+      <small style="color:var(--muted)">BrainAura AI</small>
+    </div>
+    <div>
+      <button class="toggle" onclick="toggleTheme()">🌙</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div id="chat" class="chat"></div>
+
+  <footer>
+    <textarea id="msg" placeholder="Ask anything..."></textarea>
+    <button onclick="send()">Send</button>
+  </footer>
+</div>
 
 <script>
-function login() {
-  alert("BUTTON WORKS");
+/* ===== ELEMENTS ===== */
+const loginDiv = document.getElementById("login");
+const appDiv   = document.getElementById("app");
+const chat     = document.getElementById("chat");
+const msg      = document.getElementById("msg");
+const emailEl  = document.getElementById("email");
+
+/* ===== SESSION MEMORY ===== */
+const sessionId =
+  localStorage.sessionId ||
+  (localStorage.sessionId = crypto.randomUUID());
+
+/* ===== THEME ===== */
+if (localStorage.theme === "light")
+  document.body.classList.add("light");
+
+function toggleTheme() {
+  document.body.classList.toggle("light");
+  localStorage.theme =
+    document.body.classList.contains("light") ? "light" : "dark";
+}
+
+/* ===== AUTO LOGIN ===== */
+if (localStorage.token && localStorage.email) showApp();
+
+/* ===== LOGIN ===== */
+async function login() {
+  const email = emailEl.value.trim();
+  if (!email) return alert("Enter email");
+
+  let password = null;
+
+  // Admin check
+  if (email === "admin@brainaura.com") {
+    password = prompt("Enter admin password");
+    if (!password) return;
+  }
+
+  const res = await fetch("/api/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+  if (data.error) return alert(data.error);
+
+  localStorage.token = data.token;
+  localStorage.email = email;
+
+  if (data.role === "admin") {
+    location.href = "/admin.html";
+    return;
+  }
+
+  showApp();
+}
+
+/* ===== SHOW CHAT ===== */
+function showApp() {
+  loginDiv.style.display = "none";
+  appDiv.style.display = "flex";
+  document.getElementById("userEmail").innerText = localStorage.email;
+}
+
+/* ===== LOGOUT ===== */
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+/* ===== CHAT ===== */
+function addBubble(text, cls) {
+  const d = document.createElement("div");
+  d.className = "bubble " + cls;
+  d.innerText = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send() {
+  const text = msg.value.trim();
+  if (!text) return;
+
+  addBubble(text, "user");
+  msg.value = "";
+
+  const res = await fetch("/api/chat", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ message:text, sessionId })
+  });
+
+  const data = await res.json();
+  addBubble(data.reply || "AI error", "ai");
 }
 </script>
 
