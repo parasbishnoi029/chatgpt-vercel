@@ -238,74 +238,82 @@ textarea {
 <div class="madeby">Made by <strong>Paras Bishnoi</strong></div>
 
 <script>
+/* ===== GET ELEMENTS SAFELY ===== */
 const loginDiv = document.getElementById("login");
-const appDiv = document.getElementById("app");
-const chat = document.getElementById("chat");
-const msg = document.getElementById("msg");
+const appDiv   = document.getElementById("app");
+const chat     = document.getElementById("chat");
+const msg      = document.getElementById("msg");
+const emailEl  = document.getElementById("email");
+const passEl   = document.getElementById("password");
 
-/* SESSION MEMORY */
+/* ===== SESSION MEMORY ===== */
 const sessionId =
   localStorage.sessionId ||
   (localStorage.sessionId = crypto.randomUUID());
 
-/* THEME */
-if (localStorage.theme === "light") {
-  document.body.classList.add("light");
-}
-
-function toggleTheme() {
-  document.body.classList.toggle("light");
-  localStorage.theme =
-    document.body.classList.contains("light") ? "light" : "dark";
-}
-
-/* AUTO LOGIN */
+/* ===== AUTO LOGIN ===== */
 if (localStorage.token && localStorage.email) {
   showApp();
 }
 
-/* LOGIN */
+/* ===== LOGIN FUNCTION ===== */
 async function login() {
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
+  alert("Continue clicked"); // 🔴 THIS MUST SHOW
+
+  const email = emailEl.value.trim();
+  const password = passEl.value.trim();
 
   if (!email || !password) {
     alert("Email and password required");
     return;
   }
 
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
+  let res;
+  try {
+    res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+  } catch (e) {
+    alert("Network error: API not reachable");
+    return;
+  }
 
   const data = await res.json();
-  if (data.error) return alert(data.error);
+
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
 
   localStorage.token = data.token;
   localStorage.email = email;
 
   if (data.role === "admin") {
-    location.href = "/admin.html";
+    window.location.href = "/admin.html";
     return;
   }
 
   showApp();
 }
 
+/* ===== SHOW CHAT ===== */
 function showApp() {
   loginDiv.style.display = "none";
   appDiv.style.display = "flex";
-  userEmail.innerText = localStorage.email;
-  avatar.innerText = localStorage.email[0].toUpperCase();
+  document.getElementById("userEmail").innerText = localStorage.email;
+  document.getElementById("avatar").innerText =
+    localStorage.email[0].toUpperCase();
 }
 
+/* ===== LOGOUT ===== */
 function logout() {
   localStorage.clear();
   location.reload();
 }
 
+/* ===== CHAT ===== */
 function addBubble(text, cls) {
   const d = document.createElement("div");
   d.className = "bubble " + cls;
@@ -332,5 +340,7 @@ async function send() {
 }
 </script>
 
+
 </body>
 </html>
+
