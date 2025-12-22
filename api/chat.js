@@ -1,50 +1,87 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "POST only" });
+    return res.status(405).end();
   }
 
   const { message } = req.body;
   if (!message) {
-    return res.status(400).json({ error: "Message required" });
+    return res.status(400).end();
   }
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: message
-    })
+  // Streaming headers
+  res.writeHead(200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive"
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    return res.status(response.status).json({
-      error: "OpenAI API error",
-      details: data
-    });
-  }
-
-  // ✅ CORRECT TEXT EXTRACTION
-  let reply = "";
-  for (const item of data.output || []) {
-    for (const content of item.content || []) {
-      if (content.type === "output_text") {
-        reply += content.text;
+  // ========== TRY CHATGPT FIRST ==========
+  try {
+    const openaiRes = await fetch(
+      "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          input: message,
+          stream: true
+        })
       }
+    );
+
+    if (openaiRes.ok && openaiRes.body) {
+      const reader = openaiRes.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        res.write(decoder.decode(value));
+      }
+
+      res.end();
+      return;
     }
+  } catch (e) {
+    console.log("ChatGPT failed, switching to Gemini");
   }
 
-  if (!reply) {
-    return res.status(500).json({
-      error: "No text returned",
-      raw: data
-    });
-  }
+  // ========== FALLBACK TO GEMINI ==========
+  try {
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: message }] }]
+        })
+      }
+    );
 
-  return res.status(200).json({ reply });
+    const data = await geminiRes.json();
+    const reply =
+      data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!reply) {
+      res.write("AI unavailable");
+      res.end();
+      return;
+    }
+
+    // Simulated streaming for Gemini
+    for (const ch of reply) {
+      res.write(ch);
+      await new Promise(r => setTimeout(r, 10));
+    }
+
+    res.end();
+  } catch {
+    res.write("AI unavailable");
+    res.end();
+  }
 }
