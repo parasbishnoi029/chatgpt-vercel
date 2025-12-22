@@ -64,12 +64,14 @@ th {
 </table>
 
 <script>
-const token = localStorage.token;
 
-if (!token) {
+const email = localStorage.email;
+
+if (email !== "admin@brainaura.com") {
   alert("Not authorized");
   location.href = "/";
 }
+
 
 fetch("/api/admin", {
   headers: {
