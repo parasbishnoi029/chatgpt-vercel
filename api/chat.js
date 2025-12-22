@@ -8,31 +8,25 @@ const API_KEYS = [
 const conversations = {};
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).end();
-  }
+  if (req.method !== "POST") return res.status(405).end();
 
   const { message, sessionId } = req.body;
-  if (!message || !sessionId) {
-    return res.status(400).end();
-  }
+  if (!message || !sessionId) return res.status(400).end();
 
-  if (!conversations[sessionId]) {
-    conversations[sessionId] = [];
-  }
+  if (!conversations[sessionId]) conversations[sessionId] = [];
 
   conversations[sessionId].push({ role: "user", content: message });
   conversations[sessionId] = conversations[sessionId].slice(-10);
 
   for (const key of API_KEYS) {
     try {
-      const response = await fetch(
+      const openaiRes = await fetch(
         "https://api.openai.com/v1/chat/completions",
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${key}`
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
             model: "gpt-4o-mini",
@@ -42,30 +36,36 @@ export default async function handler(req, res) {
         }
       );
 
+      // 🔥 CRITICAL HEADERS (THIS FIXES IT)
       res.writeHead(200, {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked"
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive"
       });
 
-      const reader = response.body.getReader();
+      res.flushHeaders(); // 🚨 REQUIRED ON VERCEL
+
+      const reader = openaiRes.body.getReader();
       const decoder = new TextDecoder();
       let fullReply = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
-            const data = line.replace("data: ", "");
-            if (data === "[DONE]") break;
+            const data = line.replace("data: ", "").trim();
+            if (data === "[DONE]") continue;
+
             const json = JSON.parse(data);
-            const token = json.choices[0]?.delta?.content;
+            const token = json.choices?.[0]?.delta?.content;
             if (token) {
               fullReply += token;
-              res.write(token);
+              res.write(token); // 🔥 STREAM TOKEN
             }
           }
         }
@@ -79,10 +79,10 @@ export default async function handler(req, res) {
       res.end();
       return;
 
-    } catch (e) {
+    } catch (err) {
       continue;
     }
   }
 
-  res.status(500).end();
+  res.status(500).end("All API keys failed");
 }
