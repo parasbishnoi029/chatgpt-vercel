@@ -9,10 +9,9 @@ export default async function handler(req, res) {
 
   const { message, sessionId } = req.body;
   if (!message || !sessionId) {
-    return res.status(400).json({ error: "Missing message or sessionId" });
+    return res.status(400).json({ error: "Missing data" });
   }
 
-  // 🧠 Memory
   if (!conversations[sessionId]) {
     conversations[sessionId] = [];
   }
@@ -22,43 +21,40 @@ export default async function handler(req, res) {
 
   const prompt = conversations[sessionId].join("\n");
 
-  /* =====================================================
-     🔵 TRY CHATGPT FIRST (SILENT)
-     ===================================================== */
+  /* =======================
+     🔵 TRY CHATGPT FIRST
+     ======================= */
   if (process.env.OPENAI_KEY_1) {
     try {
-      const openaiRes = await fetch(
-        "https://api.openai.com/v1/responses",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.OPENAI_KEY_1}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "gpt-4.1-mini",
-            input: prompt
-          })
-        }
-      );
+      const r = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_KEY_1}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          input: prompt
+        })
+      });
 
-      if (openaiRes.ok) {
-        const data = await openaiRes.json();
-        if (data.output_text) {
-          conversations[sessionId].push(data.output_text);
-          return res.status(200).json({ reply: data.output_text });
-        }
+      const d = await r.json();
+      console.log("OPENAI RESPONSE:", d);
+
+      if (d.output_text) {
+        conversations[sessionId].push(d.output_text);
+        return res.status(200).json({ reply: d.output_text });
       }
     } catch (e) {
-      console.log("ChatGPT failed, switching to Gemini");
+      console.log("OPENAI ERROR:", e);
     }
   }
 
-  /* =====================================================
-     🟢 FALLBACK TO GEMINI (FREE)
-     ===================================================== */
+  /* =======================
+     🟢 FALLBACK TO GEMINI
+     ======================= */
   try {
-    const geminiRes = await fetch(
+    const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
@@ -74,20 +70,24 @@ export default async function handler(req, res) {
       }
     );
 
-    const data = await geminiRes.json();
+    const d = await r.json();
+    console.log("GEMINI RESPONSE:", d);
+
     const reply =
-      data.candidates?.[0]?.content?.parts?.[0]?.text;
+      d.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!reply) {
-      console.error("Gemini error:", data);
-      return res.status(500).json({ error: "AI unavailable" });
+      return res.status(500).json({
+        error: "AI unavailable",
+        gemini: d
+      });
     }
 
     conversations[sessionId].push(reply);
     return res.status(200).json({ reply });
 
-  } catch (err) {
-    console.error("Gemini fetch failed:", err);
+  } catch (e) {
+    console.log("GEMINI ERROR:", e);
     return res.status(500).json({ error: "AI unavailable" });
   }
 }
