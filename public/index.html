@@ -1,83 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>BrainAura</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-* { box-sizing: border-box; font-family: Inter, sans-serif; }
 body {
   margin: 0;
   height: 100vh;
-  background: radial-gradient(circle at top, #1a1a2e, #0f0f1a);
+  background: #0f0f1a;
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #fff;
+  color: white;
+  font-family: Arial, sans-serif;
 }
 .app {
   width: 100%;
-  max-width: 720px;
+  max-width: 700px;
   height: 90vh;
-  background: rgba(255,255,255,0.06);
-  border-radius: 18px;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(12px);
+  background: #16162a;
+  border-radius: 14px;
 }
 header {
-  padding: 16px;
+  padding: 12px;
   text-align: center;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid #333;
 }
 .chat {
   flex: 1;
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 .bubble {
+  padding: 10px;
   max-width: 75%;
-  padding: 12px;
-  border-radius: 14px;
-  font-size: 14px;
+  border-radius: 12px;
   white-space: pre-wrap;
 }
 .user {
   align-self: flex-end;
-  background: linear-gradient(135deg, #6a5cff, #8f7bff);
+  background: #6a5cff;
 }
 .ai {
   align-self: flex-start;
-  background: #141427;
+  background: #222;
 }
 footer {
-  padding: 12px;
   display: flex;
-  gap: 8px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #333;
 }
 textarea {
   flex: 1;
-  height: 44px;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  background: #0f0f1f;
-  color: #fff;
   resize: none;
+  border-radius: 8px;
+  border: none;
+  padding: 8px;
 }
 button {
-  padding: 0 16px;
-  border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #6a5cff, #8f7bff);
-  color: #fff;
-  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #6a5cff;
+  color: white;
 }
 </style>
 </head>
@@ -85,8 +77,8 @@ button {
 <body>
 <div class="app">
   <header>
-    <h2>BrainAura</h2>
-    <p>Your AI thinking partner</p>
+    <h3>BrainAura</h3>
+    <small>Hello! How can I assist you today?</small>
   </header>
 
   <div id="chat" class="chat"></div>
@@ -101,21 +93,25 @@ button {
 <script>
 const chat = document.getElementById("chat");
 const input = document.getElementById("msg");
+const sessionId = localStorage.sessionId || (localStorage.sessionId = crypto.randomUUID());
 
 function addBubble(text, cls) {
-  const div = document.createElement("div");
-  div.className = "bubble " + cls;
-  div.innerText = text;
-  chat.appendChild(div);
+  const d = document.createElement("div");
+  d.className = "bubble " + cls;
+  d.innerText = text;
+  chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
-  return div;
+  return d;
 }
 
-async function send() {
-  const message = input.value.trim();
-  if (!message) return;
+window.onload = () => {
+  addBubble("Hello! How can I assist you today?", "ai");
+};
 
-  addBubble(message, "user");
+async function send() {
+  const msg = input.value.trim();
+  if (!msg) return;
+  addBubble(msg, "user");
   input.value = "";
 
   const aiBubble = addBubble("", "ai");
@@ -123,7 +119,7 @@ async function send() {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message: msg, sessionId })
   });
 
   const reader = res.body.getReader();
@@ -133,12 +129,12 @@ async function send() {
     const { value, done } = await reader.read();
     if (done) break;
     aiBubble.innerText += decoder.decode(value);
-    chat.scrollTop = chat.scrollHeight;
   }
 }
 
 function clearChat() {
   chat.innerHTML = "";
+  addBubble("Hello! How can I assist you today?", "ai");
 }
 </script>
 </body>
