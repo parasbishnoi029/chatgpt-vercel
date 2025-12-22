@@ -206,9 +206,8 @@ textarea {
 <div id="login" class="login-card">
   <h1>BrainAura</h1>
   <p>Sign in to start chatting with AI</p>
-  <input id="email" type="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button type="button" onclick="login()">Continue</button>
+ <input id="email" type="email" placeholder="Enter your email" />
+<button type="button" onclick="login()">Continue</button>
 </div>
 
 <!-- CHAT -->
@@ -257,28 +256,27 @@ if (localStorage.token && localStorage.email) {
 }
 
 /* ===== LOGIN FUNCTION ===== */
+<script>
 async function login() {
-  alert("Continue clicked"); // 🔴 THIS MUST SHOW
+  const email = document.getElementById("email").value.trim();
+  let password = null;
 
-  const email = emailEl.value.trim();
-  const password = passEl.value.trim();
-
-  if (!email || !password) {
-    alert("Email and password required");
+  if (!email || !email.includes("@")) {
+    alert("Enter a valid email");
     return;
   }
 
-  let res;
-  try {
-    res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-  } catch (e) {
-    alert("Network error: API not reachable");
-    return;
+  // Ask password ONLY for admin
+  if (email === "admin@brainaura.com") {
+    password = prompt("Enter admin password");
+    if (!password) return;
   }
+
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
 
   const data = await res.json();
 
@@ -297,6 +295,7 @@ async function login() {
 
   showApp();
 }
+</script>
 
 /* ===== SHOW CHAT ===== */
 function showApp() {
@@ -343,4 +342,5 @@ async function send() {
 
 </body>
 </html>
+
 
