@@ -1,21 +1,34 @@
 import jwt from "jsonwebtoken";
 import { MongoClient } from "mongodb";
 
-const client = new MongoClient(process.env.MONGODB_URI);
-await client.connect();
-const db = client.db();
-const chats = db.collection("chats");
+let cachedClient = null;
+
+async function getDB() {
+  if (cachedClient) return cachedClient;
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
+  cachedClient = client;
+  return client;
+}
 
 export default async function handler(req, res) {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).end();
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).end();
 
-  const { email } = jwt.verify(token, process.env.JWT_SECRET);
+    const { email } = jwt.verify(token, process.env.JWT_SECRET);
 
-  const history = await chats
-    .find({ email })
-    .sort({ createdAt: 1 })
-    .toArray();
+    const client = await getDB();
+    const db = client.db();
+    const chats = db.collection("chats");
 
-  res.json(history);
+    const history = await chats
+      .find({ email })
+      .sort({ createdAt: 1 })
+      .toArray();
+
+    res.status(200).json(history);
+  } catch {
+    res.status(500).json({ error: "History load failed" });
+  }
 }
