@@ -1,31 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BrainAura AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1a1a2e, #0f0f1a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 28px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .header p {
+      margin-top: 6px;
+      font-size: 14px;
+      color: #b5b5c3;
+    }
+
+    .chat-box {
+      background: #0c0c16;
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 200px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+      background: #141427;
+      color: #fff;
+      font-size: 14px;
+      height: 52px;
+    }
+
+    button {
+      padding: 0 22px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, #6a5cff, #8f7bff);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    footer {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: #8b8ba7;
+    }
+  </style>
+</head>
 <body>
 
-<h2>ChatGPT Website</h2>
+  <div class="app">
+    <div class="header">
+      <h1>BrainAura</h1>
+      <p>Your AI thinking partner</p>
+    </div>
 
-<textarea id="msg" rows="4" cols="50"></textarea><br><br>
-<button onclick="send()">Send</button>
+    <div id="chat" class="chat-box">
+      👋 Ask me anything...
+    </div>
 
-<pre id="out"></pre>
+    <div class="input-area">
+      <textarea id="msg" placeholder="Type your message..."></textarea>
+      <button onclick="send()">Send</button>
+    </div>
 
-<script>
-async function send() {
-  document.getElementById("out").innerText = "Thinking...";
+    <footer>
+      Powered by AI • Built by Paras
+    </footer>
+  </div>
 
-  const msg = document.getElementById("msg").value;
+  <script>
+    async function send() {
+      const input = document.getElementById("msg");
+      const chat = document.getElementById("chat");
+      const message = input.value.trim();
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: msg })
-  });
+      if (!message) return;
 
-  const data = await res.json();
-  document.getElementById("out").innerText =
-    data.choices?.[0]?.message?.content || data.error;
-}
-</script>
+      chat.innerText += `\n\n🧑 You: ${message}`;
+      chat.innerText += `\n\n🤖 Thinking...`;
+      chat.scrollTop = chat.scrollHeight;
+      input.value = "";
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+        chat.innerText += `\n\n🤖 ${data.reply || data.error}`;
+      } catch (err) {
+        chat.innerText += `\n\n❌ Server error`;
+      }
+
+      chat.scrollTop = chat.scrollHeight;
+    }
+  </script>
 
 </body>
 </html>
+
