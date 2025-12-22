@@ -1,89 +1,89 @@
 import jwt from "jsonwebtoken";
 import { MongoClient } from "mongodb";
 
-const client = new MongoClient(process.env.MONGODB_URI);
-await client.connect();
-const db = client.db();
-const chats = db.collection("chats");
+let cachedClient = null;
+
+async function getDB() {
+  if (cachedClient) return cachedClient;
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
+  cachedClient = client;
+  return client;
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "POST only" });
+    }
 
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).end();
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ error: "No token" });
+    }
 
-  const { email } = jwt.verify(token, process.env.JWT_SECRET);
-  const { message } = req.body;
-  if (!message) return res.status(400).end();
+    const { email } = jwt.verify(token, process.env.JWT_SECRET);
+    const { message } = req.body;
 
-  await chats.insertOne({
-    email,
-    role: "user",
-    content: message,
-    createdAt: new Date()
-  });
+    if (!message) {
+      return res.status(400).json({ error: "Message required" });
+    }
 
-  const history = await chats
-    .find({ email })
-    .sort({ createdAt: 1 })
-    .limit(10)
-    .toArray();
+    // DB
+    const client = await getDB();
+    const db = client.db();
+    const chats = db.collection("chats");
 
-  const prompt = history.map(m => m.content).join("\n");
+    await chats.insertOne({
+      email,
+      role: "user",
+      content: message,
+      createdAt: new Date()
+    });
 
-  res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "no-cache",
-    "Connection": "keep-alive"
-  });
+    // OpenAI (NON‑STREAMING)
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY_1}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        input: message
+      })
+    });
 
-  const keys = [
-    process.env.OPENAI_API_KEY_1,
-    process.env.OPENAI_API_KEY_2
-  ];
+    const data = await response.json();
 
-  for (const key of keys) {
-    if (!key) continue;
-    try {
-      const r = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${key}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "gpt-4.1-mini",
-          input: prompt,
-          stream: true
-        })
-      });
+    if (!response.ok) {
+      console.error("OpenAI error:", data);
+      return res.status(500).json({ error: "OpenAI failed" });
+    }
 
-      if (r.ok && r.body) {
-        const reader = r.body.getReader();
-        const decoder = new TextDecoder();
-        let reply = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          reply += chunk;
-          res.write(chunk);
+    // Extract text safely
+    let reply = "";
+    for (const item of data.output || []) {
+      for (const c of item.content || []) {
+        if (c.type === "output_text") {
+          reply += c.text;
         }
-
-        await chats.insertOne({
-          email,
-          role: "assistant",
-          content: reply,
-          createdAt: new Date()
-        });
-
-        res.end();
-        return;
       }
-    } catch {}
-  }
+    }
 
-  res.write("AI unavailable");
-  res.end();
+    if (!reply) reply = "No response from AI";
+
+    await chats.insertOne({
+      email,
+      role: "assistant",
+      content: reply,
+      createdAt: new Date()
+    });
+
+    return res.status(200).json({ reply });
+
+  } catch (err) {
+    console.error("CHAT ERROR:", err);
+    return res.status(500).json({ error: "Server crash" });
+  }
 }
