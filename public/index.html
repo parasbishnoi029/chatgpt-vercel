@@ -11,10 +11,10 @@
   --text:#fff; --muted:#b8b8d4;
 }
 .light {
-  --bg:#f4f6fb; --bg2:#e8ebf5; --card:#fff;
+  --bg:#f4f6fb; --bg2:#e8ebf5; --card:#ffffff;
   --text:#111; --muted:#555;
 }
-* { box-sizing:border-box; font-family:Arial }
+* { box-sizing:border-box; font-family:Arial, sans-serif; }
 body {
   margin:0; height:100vh;
   background:linear-gradient(135deg,var(--bg),var(--bg2));
@@ -22,30 +22,60 @@ body {
   color:var(--text);
 }
 .login, .app {
-  background:var(--card); padding:28px;
-  border-radius:16px; width:100%; max-width:380px;
+  background:var(--card);
+  padding:28px;
+  border-radius:16px;
+  width:100%;
+  max-width:380px;
 }
-.app { display:none; max-width:820px; height:90vh; flex-direction:column }
+.app {
+  display:none;
+  max-width:820px;
+  height:90vh;
+  flex-direction:column;
+}
 input, textarea {
-  width:100%; padding:12px; border-radius:10px;
-  border:none; margin-bottom:12px;
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:none;
+  margin-bottom:12px;
 }
 button {
-  padding:12px; border:none; border-radius:10px;
-  cursor:pointer; background:#6a5cff; color:white;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  background:#6a5cff;
+  color:#fff;
 }
 header {
-  display:flex; justify-content:space-between; align-items:center;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
   margin-bottom:10px;
 }
-.chat { flex:1; overflow:auto }
-.bubble {
-  padding:10px; margin:6px 0; border-radius:10px;
+.chat {
+  flex:1;
+  overflow:auto;
+  margin-bottom:10px;
 }
-.user { background:#6a5cff; align-self:flex-end }
-.ai { background:#222 }
-footer { display:flex; gap:8px }
-.toggle { background:none; font-size:18px }
+.bubble {
+  padding:10px;
+  margin:6px 0;
+  border-radius:10px;
+  max-width:70%;
+}
+.user { background:#6a5cff; align-self:flex-end; }
+.ai { background:#222; align-self:flex-start; }
+footer {
+  display:flex;
+  gap:8px;
+}
+.toggle {
+  background:none;
+  font-size:18px;
+}
 </style>
 </head>
 
@@ -97,7 +127,6 @@ const sessionId =
 if (localStorage.theme === "light") {
   document.body.classList.add("light");
 }
-
 function toggleTheme() {
   document.body.classList.toggle("light");
   localStorage.theme =
@@ -132,7 +161,7 @@ async function login() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
-  } catch (e) {
+  } catch {
     alert("Server not reachable");
     return;
   }
@@ -143,10 +172,9 @@ async function login() {
     return;
   }
 
-  // ✅ SAVE EMAIL
   localStorage.email = email;
 
-  // ✅ ADMIN REDIRECT (EMAIL-BASED, BULLETPROOF)
+  // ✅ ADMIN REDIRECT
   if (email === "admin@brainaura.com") {
     window.location.href = "/admin.html";
     return;
@@ -196,9 +224,5 @@ async function send() {
 }
 </script>
 
-
 </body>
 </html>
-
-
-
