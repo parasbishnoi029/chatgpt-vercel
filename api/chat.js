@@ -1,13 +1,32 @@
+// Simple in-memory storage (per server instance)
+const sessions = {};
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "POST only" });
     }
 
-    const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Message required" });
+    const { message, sessionId } = req.body;
+    if (!message || !sessionId) {
+      return res.status(400).json({
+        error: "message and sessionId required"
+      });
     }
+
+    // Init memory for this session
+    if (!sessions[sessionId]) {
+      sessions[sessionId] = [];
+    }
+
+    // Add user message to memory
+    sessions[sessionId].push({
+      role: "user",
+      content: message
+    });
+
+    // Keep last 10 messages only
+    sessions[sessionId] = sessions[sessionId].slice(-10);
 
     const keys = [
       process.env.OPENAI_API_KEY_1,
@@ -28,16 +47,15 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
               model: "gpt-4.1-mini",
-              input: message
+              input: sessions[sessionId] // ✅ MEMORY HERE
             })
           }
         );
 
         const data = await response.json();
-
         if (!response.ok) {
           console.error("OpenAI error:", data);
-          continue; // try next key
+          continue;
         }
 
         let reply = "";
@@ -50,6 +68,12 @@ export default async function handler(req, res) {
         }
 
         if (reply) {
+          // Save assistant reply to memory
+          sessions[sessionId].push({
+            role: "assistant",
+            content: reply
+          });
+
           return res.status(200).json({ reply });
         }
       } catch (err) {
