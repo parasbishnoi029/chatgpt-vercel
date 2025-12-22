@@ -12,5 +12,5 @@ export default function handler(req, res) {
     { expiresIn: "7d" }
   );
 
-  res.json({ token });
+  res.json({ token, email });
 }
