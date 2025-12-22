@@ -9,9 +9,10 @@ export default async function handler(req, res) {
 
   const { message, sessionId } = req.body;
   if (!message || !sessionId) {
-    return res.status(400).json({ error: "Missing data" });
+    return res.status(400).json({ error: "Missing message or sessionId" });
   }
 
+  // 🧠 Memory
   if (!conversations[sessionId]) {
     conversations[sessionId] = [];
   }
@@ -21,10 +22,12 @@ export default async function handler(req, res) {
 
   const prompt = conversations[sessionId].join("\n");
 
-  /* 🔵 TRY CHATGPT FIRST (SILENT) */
+  /* =====================================================
+     🔵 TRY CHATGPT FIRST (SILENT)
+     ===================================================== */
   if (process.env.OPENAI_KEY_1) {
     try {
-      const r = await fetch(
+      const openaiRes = await fetch(
         "https://api.openai.com/v1/responses",
         {
           method: "POST",
@@ -39,38 +42,52 @@ export default async function handler(req, res) {
         }
       );
 
-      const d = await r.json();
-      if (d.output_text) {
-        conversations[sessionId].push(d.output_text);
-        return res.status(200).json({ reply: d.output_text });
+      if (openaiRes.ok) {
+        const data = await openaiRes.json();
+        if (data.output_text) {
+          conversations[sessionId].push(data.output_text);
+          return res.status(200).json({ reply: data.output_text });
+        }
       }
-    } catch {}
+    } catch (e) {
+      console.log("ChatGPT failed, switching to Gemini");
+    }
   }
 
-  /* 🟢 FALLBACK TO GEMINI (SILENT) */
+  /* =====================================================
+     🟢 FALLBACK TO GEMINI (FREE)
+     ===================================================== */
   try {
-    const r = await fetch(
+    const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ]
         })
       }
     );
 
-    const d = await r.json();
-    const reply = d.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data = await geminiRes.json();
+    const reply =
+      data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!reply) {
+      console.error("Gemini error:", data);
       return res.status(500).json({ error: "AI unavailable" });
     }
 
     conversations[sessionId].push(reply);
     return res.status(200).json({ reply });
 
-  } catch {
+  } catch (err) {
+    console.error("Gemini fetch failed:", err);
     return res.status(500).json({ error: "AI unavailable" });
   }
 }
