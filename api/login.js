@@ -1,5 +1,4 @@
 import { MongoClient } from "mongodb";
-import jwt from "jsonwebtoken";
 
 let client;
 async function getDB() {
@@ -25,42 +24,35 @@ export default async function handler(req, res) {
     const db = await getDB();
     const logs = db.collection("login_logs");
 
-    /* 🔐 ADMIN LOGIN */
-   if (email === process.env.ADMIN_EMAIL) {
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: "Wrong admin password" });
-  }
+    // 🔐 ADMIN
+    if (email === process.env.ADMIN_EMAIL) {
+      if (password !== process.env.ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Wrong admin password" });
+      }
 
-  await logs.insertOne({
-    email,
-    role: "admin",
-    time: new Date()
-  });
+      await logs.insertOne({
+        email,
+        role: "admin",
+        time: new Date()
+      });
 
-  return res.json({
-    token: "admin-token",
-    role: "admin"
-  });
-}
+      return res.json({ role: "admin", ok: true });
+    }
 
-
-    /* 👤 NORMAL USER LOGIN (EMAIL ONLY) */
+    // 👤 USER (EMAIL ONLY)
     await logs.insertOne({
       email,
       role: "user",
       time: new Date()
     });
 
-    const token = jwt.sign(
-      { email, role: "user" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    return res.json({ token, role: "user" });
+    return res.json({ role: "user", ok: true });
 
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("LOGIN API CRASH:", err);
+    return res.status(500).json({
+      error: "Server error",
+      details: err.message
+    });
   }
 }
