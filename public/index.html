@@ -3,97 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <title>BrainAura</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {
-  margin: 0;
-  height: 100vh;
-  background: #0f0f1a;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  font-family: Arial, sans-serif;
-}
-.app {
-  width: 100%;
-  max-width: 700px;
-  height: 90vh;
-  display: flex;
-  flex-direction: column;
-  background: #16162a;
-  border-radius: 14px;
-}
-header {
-  padding: 12px;
-  text-align: center;
-  border-bottom: 1px solid #333;
-}
-.chat {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bubble {
-  padding: 10px;
-  max-width: 75%;
-  border-radius: 12px;
-  white-space: pre-wrap;
-}
-.user {
-  align-self: flex-end;
-  background: #6a5cff;
-}
-.ai {
-  align-self: flex-start;
-  background: #222;
-}
-footer {
-  display: flex;
-  gap: 6px;
-  padding: 10px;
-  border-top: 1px solid #333;
-}
-textarea {
-  flex: 1;
-  resize: none;
-  border-radius: 8px;
-  border: none;
-  padding: 8px;
-}
-button {
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: #6a5cff;
-  color: white;
-}
+body { background:#0f0f1a;color:#fff;font-family:Arial }
+.chat { height:70vh; overflow:auto }
+.bubble { padding:8px; margin:6px; border-radius:8px }
+.user { background:#6a5cff; text-align:right }
+.ai { background:#222 }
 </style>
 </head>
-
 <body>
-<div class="app">
-  <header>
-    <h3>BrainAura</h3>
-    <small>Hello! How can I assist you today?</small>
-  </header>
 
-  <div id="chat" class="chat"></div>
+<h2>BrainAura</h2>
 
-  <footer>
-    <textarea id="msg" placeholder="Ask anything..."></textarea>
-    <button onclick="send()">Send</button>
-    <button onclick="clearChat()">Clear</button>
-  </footer>
-</div>
+<input id="email" placeholder="Enter email" />
+<button onclick="login()">Login</button>
+
+<div id="chat" class="chat"></div>
+
+<textarea id="msg"></textarea>
+<button onclick="send()">Send</button>
+<button onclick="clearChat()">Clear</button>
 
 <script>
 const chat = document.getElementById("chat");
 const input = document.getElementById("msg");
-const sessionId = localStorage.sessionId || (localStorage.sessionId = crypto.randomUUID());
 
 function addBubble(text, cls) {
   const d = document.createElement("div");
@@ -104,37 +37,54 @@ function addBubble(text, cls) {
   return d;
 }
 
-window.onload = () => {
-  addBubble("Hello! How can I assist you today?", "ai");
-};
+async function login() {
+  const email = document.getElementById("email").value;
+  const res = await fetch("/api/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ email })
+  });
+  const data = await res.json();
+  localStorage.token = data.token;
+  loadHistory();
+}
+
+async function loadHistory() {
+  const res = await fetch("/api/history", {
+    headers:{ Authorization:"Bearer " + localStorage.token }
+  });
+  const data = await res.json();
+  chat.innerHTML = "";
+  data.forEach(m => addBubble(m.content, m.role === "user" ? "user":"ai"));
+}
 
 async function send() {
   const msg = input.value.trim();
-  if (!msg) return;
-  addBubble(msg, "user");
-  input.value = "";
+  addBubble(msg,"user");
+  input.value="";
 
-  const aiBubble = addBubble("", "ai");
+  const ai = addBubble("","ai");
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: msg, sessionId })
+  const res = await fetch("/api/chat",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer " + localStorage.token
+    },
+    body: JSON.stringify({ message: msg })
   });
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    aiBubble.innerText += decoder.decode(value);
+  while(true){
+    const {value,done} = await reader.read();
+    if(done) break;
+    ai.innerText += decoder.decode(value);
   }
 }
 
-function clearChat() {
-  chat.innerHTML = "";
-  addBubble("Hello! How can I assist you today?", "ai");
+function clearChat(){
+  chat.innerHTML="";
 }
 </script>
 </body>
