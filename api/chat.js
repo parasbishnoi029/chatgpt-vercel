@@ -7,8 +7,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST only" });
   }
 
-  const { message, sessionId, provider } = req.body;
-  if (!message || !sessionId || !provider) {
+  const { message, sessionId } = req.body;
+  if (!message || !sessionId) {
     return res.status(400).json({ error: "Missing data" });
   }
 
@@ -21,33 +21,9 @@ export default async function handler(req, res) {
 
   const prompt = conversations[sessionId].join("\n");
 
-  try {
-    // 🟢 GEMINI (FREE)
-    if (provider === "gemini") {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        }
-      );
-
-      const d = await r.json();
-      const reply = d.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!reply) {
-        return res.status(500).json({ error: "Gemini failed" });
-      }
-
-      conversations[sessionId].push(reply);
-      return res.status(200).json({ reply });
-    }
-
-    // 🔵 CHATGPT (PAID)
-    if (provider === "openai") {
+  /* 🔵 TRY CHATGPT FIRST (SILENT) */
+  if (process.env.OPENAI_KEY_1) {
+    try {
       const r = await fetch(
         "https://api.openai.com/v1/responses",
         {
@@ -64,17 +40,37 @@ export default async function handler(req, res) {
       );
 
       const d = await r.json();
-      if (!d.output_text) {
-        return res.status(500).json({ error: "OpenAI failed" });
+      if (d.output_text) {
+        conversations[sessionId].push(d.output_text);
+        return res.status(200).json({ reply: d.output_text });
       }
+    } catch {}
+  }
 
-      conversations[sessionId].push(d.output_text);
-      return res.status(200).json({ reply: d.output_text });
+  /* 🟢 FALLBACK TO GEMINI (SILENT) */
+  try {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+
+    const d = await r.json();
+    const reply = d.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!reply) {
+      return res.status(500).json({ error: "AI unavailable" });
     }
 
-    return res.status(400).json({ error: "Invalid provider" });
+    conversations[sessionId].push(reply);
+    return res.status(200).json({ reply });
 
-  } catch (e) {
-    return res.status(500).json({ error: "Server error" });
+  } catch {
+    return res.status(500).json({ error: "AI unavailable" });
   }
 }
