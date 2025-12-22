@@ -65,6 +65,7 @@ export default async function handler(req, res) {
 
   // ❌ All keys failed
   return res.status(500).json({
-    error: "All ChatGPT API keys failed"
+    error: "All failed"
   });
 }
+
