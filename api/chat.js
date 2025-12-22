@@ -26,10 +26,11 @@ async function callOpenAI(apiKey, prompt) {
 
   const data = await res.json();
 
-  if (!res.ok) {
-    console.error("OpenAI key failed:", data);
-    return null;
-  }
+  // 🔴 LOG EVERYTHING (CRITICAL)
+  console.log("OPENAI STATUS:", res.status);
+  console.log("OPENAI RESPONSE:", JSON.stringify(data));
+
+  if (!res.ok) return null;
 
   let reply = "";
   for (const item of data.output ?? []) {
@@ -45,34 +46,18 @@ async function callOpenAI(apiKey, prompt) {
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "POST only" });
-    }
-
     const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ error: "No token" });
-    }
+    if (!token) return res.status(401).json({ error: "No token" });
 
     const { email } = jwt.verify(token, process.env.JWT_SECRET);
     const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Message required" });
-    }
+    if (!message) return res.status(400).json({ error: "Message required" });
 
     const client = await getDB();
-    const db = client.db();
-    const chats = db.collection("chats");
+    const chats = client.db().collection("chats");
 
-    // Save user message
-    await chats.insertOne({
-      email,
-      role: "user",
-      content: message,
-      createdAt: new Date()
-    });
+    await chats.insertOne({ email, role: "user", content: message, createdAt: new Date() });
 
-    // Load last 10 messages
     const history = await chats
       .find({ email })
       .sort({ createdAt: 1 })
@@ -81,7 +66,6 @@ export default async function handler(req, res) {
 
     const prompt = history.map(m => m.content).join("\n");
 
-    // 🔁 TRY BOTH KEYS
     const keys = [
       process.env.OPENAI_API_KEY_1,
       process.env.OPENAI_API_KEY_2
@@ -95,21 +79,15 @@ export default async function handler(req, res) {
     }
 
     if (!reply) {
-      return res.status(500).json({ error: "AI unavailable" });
+      return res.status(500).json({ error: "AI unavailable (OpenAI failed)" });
     }
 
-    // Save assistant reply
-    await chats.insertOne({
-      email,
-      role: "assistant",
-      content: reply,
-      createdAt: new Date()
-    });
+    await chats.insertOne({ email, role: "assistant", content: reply, createdAt: new Date() });
 
-    return res.status(200).json({ reply });
+    res.json({ reply });
 
-  } catch (err) {
-    console.error("SERVER ERROR:", err);
-    return res.status(500).json({ error: "Server crash" });
+  } catch (e) {
+    console.error("SERVER CRASH:", e);
+    res.status(500).json({ error: "Server crash" });
   }
 }
