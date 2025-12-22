@@ -108,27 +108,29 @@ if (localStorage.token && localStorage.email) showApp();
 
 /* ===== LOGIN ===== */
 async function login() {
-  const email = emailEl.value.trim();
+  const email = document.getElementById("email").value.trim();
   if (!email) return alert("Enter email");
 
   let password = null;
 
-  // Admin check
   if (email === "admin@brainaura.com") {
     password = prompt("Enter admin password");
     if (!password) return;
   }
 
   const res = await fetch("/api/login", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ email, password })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
   });
 
   const data = await res.json();
-  if (data.error) return alert(data.error);
 
-  localStorage.token = data.token;
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
   localStorage.email = email;
 
   if (data.role === "admin") {
@@ -138,6 +140,7 @@ async function login() {
 
   showApp();
 }
+
 
 /* ===== SHOW CHAT ===== */
 function showApp() {
@@ -181,3 +184,4 @@ async function send() {
 
 </body>
 </html>
+
