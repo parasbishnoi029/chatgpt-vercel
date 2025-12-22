@@ -94,8 +94,9 @@ const sessionId =
   (localStorage.sessionId = crypto.randomUUID());
 
 /* ===== THEME ===== */
-if (localStorage.theme === "light")
+if (localStorage.theme === "light") {
   document.body.classList.add("light");
+}
 
 function toggleTheme() {
   document.body.classList.toggle("light");
@@ -103,13 +104,14 @@ function toggleTheme() {
     document.body.classList.contains("light") ? "light" : "dark";
 }
 
-/* ===== AUTO LOGIN ===== */
-if (localStorage.token && localStorage.email) showApp();
+/* ===== AUTO LOGIN (NORMAL USER ONLY) ===== */
+if (localStorage.email && localStorage.email !== "admin@brainaura.com") {
+  showApp();
+}
 
 /* ===== LOGIN ===== */
-<script>
 async function login() {
-  const email = document.getElementById("email").value.trim();
+  const email = emailEl.value.trim();
   if (!email) {
     alert("Enter email");
     return;
@@ -123,14 +125,19 @@ async function login() {
     if (!password) return;
   }
 
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
+  let res;
+  try {
+    res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+  } catch (e) {
+    alert("Server not reachable");
+    return;
+  }
 
   const data = await res.json();
-
   if (data.error) {
     alert(data.error);
     return;
@@ -139,22 +146,15 @@ async function login() {
   // ✅ SAVE EMAIL
   localStorage.email = email;
 
-  // ✅ ADMIN REDIRECT (THIS IS THE LINE YOU ASKED ABOUT)
+  // ✅ ADMIN REDIRECT (EMAIL-BASED, BULLETPROOF)
   if (email === "admin@brainaura.com") {
-    location.href = "/admin.html";
+    window.location.href = "/admin.html";
     return;
   }
 
   // 👤 NORMAL USER
   showApp();
 }
-
-function showApp() {
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-}
-
-
 
 /* ===== SHOW CHAT ===== */
 function showApp() {
@@ -186,9 +186,9 @@ async function send() {
   msg.value = "";
 
   const res = await fetch("/api/chat", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ message:text, sessionId })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text, sessionId })
   });
 
   const data = await res.json();
@@ -196,7 +196,9 @@ async function send() {
 }
 </script>
 
+
 </body>
 </html>
+
 
 
