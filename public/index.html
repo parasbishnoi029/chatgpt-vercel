@@ -2,164 +2,213 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>BrainAura AI</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainAura</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
-    }
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
     body {
       margin: 0;
       min-height: 100vh;
       background: radial-gradient(circle at top, #1a1a2e, #0f0f1a);
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       color: #fff;
     }
 
     .app {
       width: 100%;
       max-width: 720px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 28px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      height: 90vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      overflow: hidden;
     }
 
-    .header {
+    header {
+      padding: 18px;
       text-align: center;
-      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
-    .header h1 {
+    header h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 22px;
       font-weight: 700;
-      letter-spacing: 0.5px;
     }
 
-    .header p {
-      margin-top: 6px;
-      font-size: 14px;
-      color: #b5b5c3;
+    header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #b8b8d4;
     }
 
-    .chat-box {
-      background: #0c0c16;
-      border-radius: 12px;
+    .chat {
+      flex: 1;
       padding: 16px;
-      min-height: 200px;
-      max-height: 300px;
       overflow-y: auto;
-      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .bubble {
+      max-width: 75%;
+      padding: 12px 14px;
+      border-radius: 14px;
       font-size: 14px;
       line-height: 1.6;
       white-space: pre-wrap;
+      animation: fadeIn 0.25s ease;
     }
 
-    .input-area {
+    .user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #6a5cff, #8f7bff);
+    }
+
+    .ai {
+      align-self: flex-start;
+      background: #141427;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .typing {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #aaa;
+      border-radius: 50%;
+      margin-right: 4px;
+      animation: blink 1.4s infinite both;
+    }
+
+    .typing:nth-child(2) { animation-delay: .2s }
+    .typing:nth-child(3) { animation-delay: .4s }
+
+    @keyframes blink {
+      0% { opacity: .2 }
+      20% { opacity: 1 }
+      100% { opacity: .2 }
+    }
+
+    footer {
+      padding: 14px;
       display: flex;
       gap: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
     }
 
     textarea {
       flex: 1;
       resize: none;
+      height: 44px;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: none;
       outline: none;
-      background: #141427;
+      background: #0f0f1f;
       color: #fff;
       font-size: 14px;
-      height: 52px;
     }
 
     button {
       padding: 0 22px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: none;
       cursor: pointer;
       background: linear-gradient(135deg, #6a5cff, #8f7bff);
       color: #fff;
       font-weight: 600;
-      font-size: 14px;
-      transition: transform 0.1s ease, opacity 0.1s ease;
-    }
-
-    button:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    footer {
-      margin-top: 14px;
-      text-align: center;
-      font-size: 12px;
-      color: #8b8ba7;
     }
   </style>
 </head>
 <body>
 
-  <div class="app">
-    <div class="header">
-      <h1>BrainAura</h1>
-      <p>Your AI thinking partner</p>
-    </div>
+<div class="app">
+  <header>
+    <h1>BrainAura</h1>
+    <p>Your AI thinking partner</p>
+  </header>
 
-    <div id="chat" class="chat-box">
-      👋 Ask me anything...
-    </div>
+  <div id="chat" class="chat"></div>
 
-    <div class="input-area">
-      <textarea id="msg" placeholder="Type your message..."></textarea>
-      <button onclick="send()">Send</button>
-    </div>
+  <footer>
+    <textarea id="msg" placeholder="Ask anything..."></textarea>
+    <button onclick="send()">Send</button>
+  </footer>
+</div>
 
-    <footer>
-      Powered by AI • Built by Paras
-    </footer>
-  </div>
+<script>
+  const chat = document.getElementById("chat");
+  const input = document.getElementById("msg");
 
-  <script>
-    async function send() {
-      const input = document.getElementById("msg");
-      const chat = document.getElementById("chat");
-      const message = input.value.trim();
+  const sessionId =
+    localStorage.getItem("sessionId") || crypto.randomUUID();
+  localStorage.setItem("sessionId", sessionId);
 
-      if (!message) return;
+  function addBubble(text, cls) {
+    const div = document.createElement("div");
+    div.className = "bubble " + cls;
+    div.innerText = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
 
-      chat.innerText += `\n\n🧑 You: ${message}`;
-      chat.innerText += `\n\n🤖 Thinking...`;
-      chat.scrollTop = chat.scrollHeight;
-      input.value = "";
+  function addTyping() {
+    const div = document.createElement("div");
+    div.className = "bubble ai";
+    div.innerHTML = `
+      <span class="typing"></span>
+      <span class="typing"></span>
+      <span class="typing"></span>
+    `;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
 
-      try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message })
-        });
+  async function send() {
+    const message = input.value.trim();
+    if (!message) return;
 
-        const data = await res.json();
-        chat.innerText += `\n\n🤖 ${data.reply || data.error}`;
-      } catch (err) {
-        chat.innerText += `\n\n❌ Server error`;
-      }
+    addBubble(message, "user");
+    input.value = "";
 
+    const typingBubble = addTyping();
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, sessionId })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    typingBubble.innerText = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      typingBubble.innerText += decoder.decode(value);
       chat.scrollTop = chat.scrollHeight;
     }
-  </script>
+  }
+</script>
 
 </body>
 </html>
-
