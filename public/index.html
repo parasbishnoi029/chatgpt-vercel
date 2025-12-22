@@ -1,197 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>BrainAura</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
 <style>
-:root {
-  --bg: #0f0f1a;
-  --card: #16162a;
-  --text: #ffffff;
-  --muted: #b8b8d4;
-}
-.light {
-  --bg: #f4f4fb;
-  --card: #ffffff;
-  --text: #111;
-  --muted: #555;
-}
-* { box-sizing: border-box; font-family: Inter, Arial, sans-serif; }
-body {
-  margin: 0;
-  height: 100vh;
-  background: var(--bg);
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.card {
-  width: 100%;
-  max-width: 720px;
-  height: 90vh;
-  background: var(--card);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-}
-header {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #3333;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #6a5cff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-.chat {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.bubble {
-  max-width: 75%;
-  padding: 12px;
-  border-radius: 14px;
-  white-space: pre-wrap;
-}
-.user {
-  align-self: flex-end;
-  background: #6a5cff;
-}
-.ai {
-  align-self: flex-start;
-  background: #222;
-}
-footer {
-  padding: 12px;
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid #3333;
-}
-textarea {
-  flex: 1;
-  resize: none;
-  border-radius: 10px;
-  border: none;
-  padding: 10px;
-}
-button {
-  border: none;
-  border-radius: 10px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-.secondary { background: #444; color: #fff; }
-.login {
-  max-width: 420px;
-  padding: 24px;
-  text-align: center;
-}
-.madeby {
-  position: fixed;
-  bottom: 10px;
-  width: 100%;
-  text-align: center;
-  font-size: 12px;
-  color: var(--muted);
-}
+body { background:#0f0f1a;color:#fff;font-family:Arial }
+.chat { height:70vh; overflow:auto }
+.bubble { padding:8px;margin:6px;border-radius:8px }
+.user { background:#6a5cff;text-align:right }
+.ai { background:#222 }
 </style>
 </head>
-
 <body>
 
-<!-- LOGIN -->
-<div id="loginView" class="card login">
-  <h1>BrainAura</h1>
-  <p class="muted">Sign in to start chatting with AI</p>
-  <input id="email" placeholder="Enter your email" />
+<h2>BrainAura</h2>
+
+<div id="login">
+  <input id="email" placeholder="Enter email">
   <button onclick="login()">Continue</button>
-  <p style="font-size:12px;color:var(--muted);margin-top:12px;">
-    Login is required to access chat
-  </p>
 </div>
 
-<!-- CHAT -->
-<div id="chatView" class="card" style="display:none;">
-  <header>
-    <div class="header-left">
-      <div id="avatar" class="avatar">U</div>
-      <div>
-        <strong id="userEmail"></strong><br/>
-        <small class="muted">BrainAura</small>
-      </div>
-    </div>
-    <div>
-      <button onclick="toggleTheme()">🌗</button>
-      <button onclick="logout()">Logout</button>
-    </div>
-  </header>
-
+<div id="app" style="display:none;">
+  <p id="user"></p>
+  <button onclick="logout()">Logout</button>
   <div id="chat" class="chat"></div>
-
-  <footer>
-    <textarea id="msg" placeholder="Ask anything..."></textarea>
-    <button onclick="send()">Send</button>
-    <button class="secondary" onclick="clearChat()">Clear</button>
-  </footer>
+  <textarea id="msg"></textarea>
+  <button onclick="send()">Send</button>
+  <button onclick="clearChat()">Clear</button>
 </div>
 
-<div class="madeby">Made by <strong>Paras Bishnoi</strong></div>
+<p style="font-size:12px;">Made by <b>Paras Bishnoi</b></p>
 
 <script>
-const loginView = document.getElementById("loginView");
-const chatView = document.getElementById("chatView");
 const chat = document.getElementById("chat");
-const input = document.getElementById("msg");
-const emailEl = document.getElementById("userEmail");
-const avatarEl = document.getElementById("avatar");
+const msg = document.getElementById("msg");
 
-if (localStorage.theme === "light") document.body.classList.add("light");
-
-if (localStorage.token && localStorage.email) showChat();
+if (localStorage.token) showApp();
 
 async function login() {
-  const email = document.getElementById("email").value.trim();
-  if (!email || !email.includes("@")) return alert("Enter valid email");
-
+  const email = document.getElementById("email").value;
   const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email })
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ email })
   });
-
   const data = await res.json();
   localStorage.token = data.token;
   localStorage.email = data.email;
-  showChat();
+  showApp();
 }
 
-function showChat() {
-  loginView.style.display = "none";
-  chatView.style.display = "flex";
-  emailEl.innerText = localStorage.email;
-  avatarEl.innerText = localStorage.email[0].toUpperCase();
-  if (!chat.children.length)
-    addBubble("Hello! How can I assist you today?", "ai");
+function showApp() {
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("user").innerText = localStorage.email;
+  loadHistory();
 }
 
 function logout() {
@@ -199,51 +62,40 @@ function logout() {
   location.reload();
 }
 
-function toggleTheme() {
-  document.body.classList.toggle("light");
-  localStorage.theme = document.body.classList.contains("light") ? "light" : "dark";
+function addBubble(text, cls) {
+  const d=document.createElement("div");
+  d.className="bubble "+cls;
+  d.innerText=text;
+  chat.appendChild(d);
 }
 
-function addBubble(text, cls) {
-  const d = document.createElement("div");
-  d.className = "bubble " + cls;
-  d.innerText = text;
-  chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
-  return d;
+async function loadHistory() {
+  const res = await fetch("/api/history", {
+    headers:{ Authorization:"Bearer "+localStorage.token }
+  });
+  const data = await res.json();
+  chat.innerHTML="";
+  data.forEach(m=>addBubble(m.content,m.role==="user"?"user":"ai"));
 }
 
 async function send() {
-  const msg = input.value.trim();
-  if (!msg) return;
-
-  addBubble(msg, "user");
-  input.value = "";
-
-  const ai = addBubble("", "ai");
-
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + localStorage.token
+  const text = msg.value.trim();
+  addBubble(text,"user");
+  msg.value="";
+  const res = await fetch("/api/chat",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      Authorization:"Bearer "+localStorage.token
     },
-    body: JSON.stringify({ message: msg })
+    body:JSON.stringify({ message:text })
   });
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    ai.innerText += decoder.decode(value);
-  }
+  const data = await res.json();
+  addBubble(data.reply,"ai");
 }
 
-function clearChat() {
-  chat.innerHTML = "";
-  addBubble("Hello! How can I assist you today?", "ai");
+function clearChat(){
+  chat.innerHTML="";
 }
 </script>
 </body>
