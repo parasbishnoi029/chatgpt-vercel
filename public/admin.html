@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin – BrainAura</title>
+<style>
+body { font-family: Arial; background:#111; color:#fff; padding:20px }
+table { width:100%; border-collapse:collapse }
+td,th { padding:8px; border-bottom:1px solid #333 }
+</style>
+</head>
+<body>
+
+<h2>Admin Login Logs</h2>
+<table>
+<thead>
+<tr>
+  <th>Email</th>
+  <th>Role</th>
+  <th>Login Time</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+
+<script>
+const token = localStorage.token;
+fetch("/api/admin", {
+  headers: { Authorization: "Bearer " + token }
+})
+.then(r => r.json())
+.then(data => {
+  const rows = document.getElementById("rows");
+  data.forEach(l => {
+    rows.innerHTML += `
+      <tr>
+        <td>${l.email}</td>
+        <td>${l.role}</td>
+        <td>${new Date(l.time).toLocaleString()}</td>
+      </tr>`;
+  });
+});
+</script>
+
+</body>
+</html>
