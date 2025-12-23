@@ -55,6 +55,22 @@ header {
   align-items:center;
   margin-bottom:10px;
 }
+.user-info {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.avatar {
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background:#6a5cff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  color:white;
+}
 .chat {
   flex:1;
   overflow:auto;
@@ -68,13 +84,17 @@ header {
 }
 .user { background:#6a5cff; align-self:flex-end; }
 .ai { background:#222; align-self:flex-start; }
-footer {
-  display:flex;
-  gap:8px;
-}
-.toggle {
-  background:none;
-  font-size:18px;
+footer { display:flex; gap:8px; }
+.toggle { background:none; font-size:18px; }
+
+.madeby {
+  position: fixed;
+  bottom: 10px;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
 }
 </style>
 </head>
@@ -92,9 +112,12 @@ footer {
 <!-- CHAT -->
 <div id="app" class="app">
   <header>
-    <div>
-      <strong id="userEmail"></strong><br>
-      <small style="color:var(--muted)">BrainAura AI</small>
+    <div class="user-info">
+      <div id="avatar" class="avatar">U</div>
+      <div>
+        <strong id="userEmail"></strong><br>
+        <small style="color:var(--muted)">BrainAura AI</small>
+      </div>
     </div>
     <div>
       <button class="toggle" onclick="toggleTheme()">🌙</button>
@@ -110,94 +133,82 @@ footer {
   </footer>
 </div>
 
+<div class="madeby">
+  Made with ❤️ by <strong>Paras Bishnoi</strong>
+</div>
+
 <script>
-/* ===== ELEMENTS ===== */
 const loginDiv = document.getElementById("login");
 const appDiv   = document.getElementById("app");
 const chat     = document.getElementById("chat");
 const msg      = document.getElementById("msg");
 const emailEl  = document.getElementById("email");
+const avatarEl = document.getElementById("avatar");
 
-/* ===== SESSION MEMORY ===== */
 const sessionId =
   localStorage.sessionId ||
   (localStorage.sessionId = crypto.randomUUID());
 
-/* ===== THEME ===== */
 if (localStorage.theme === "light") {
   document.body.classList.add("light");
 }
+
 function toggleTheme() {
   document.body.classList.toggle("light");
   localStorage.theme =
     document.body.classList.contains("light") ? "light" : "dark";
 }
 
-/* ===== AUTO LOGIN (NORMAL USER ONLY) ===== */
 if (localStorage.email && localStorage.email !== "admin@brainaura.com") {
   showApp();
 }
 
-/* ===== LOGIN ===== */
 async function login() {
   const email = emailEl.value.trim();
-  if (!email) {
-    alert("Enter email");
-    return;
-  }
+  if (!email) return alert("Enter email");
 
   let password = null;
-
-  // 🔐 ADMIN PASSWORD PROMPT
   if (email === "admin@brainaura.com") {
     password = prompt("Enter admin password");
     if (!password) return;
   }
 
-  let res;
-  try {
-    res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-  } catch {
-    alert("Server not reachable");
-    return;
-  }
+  const res = await fetch("/api/login", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ email, password })
+  });
 
   const data = await res.json();
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
+  if (data.error) return alert(data.error);
 
   localStorage.email = email;
 
-  // ✅ ADMIN REDIRECT
   if (email === "admin@brainaura.com") {
-    window.location.href = "/admin.html";
+    location.href = "/admin.html";
     return;
   }
 
-  // 👤 NORMAL USER
   showApp();
 }
 
-/* ===== SHOW CHAT ===== */
 function showApp() {
   loginDiv.style.display = "none";
   appDiv.style.display = "flex";
-  document.getElementById("userEmail").innerText = localStorage.email;
+
+  const time = new Date().toLocaleString();
+  document.getElementById("userEmail").innerText =
+    localStorage.email + " • " + time;
+
+  avatarEl.innerText = localStorage.email[0].toUpperCase();
 }
 
-/* ===== LOGOUT ===== */
 function logout() {
   localStorage.clear();
+  chat.innerHTML = "";
   location.reload();
 }
 
-/* ===== CHAT ===== */
 function addBubble(text, cls) {
   const d = document.createElement("div");
   d.className = "bubble " + cls;
@@ -214,14 +225,21 @@ async function send() {
   msg.value = "";
 
   const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: text, sessionId })
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ message:text, sessionId })
   });
 
   const data = await res.json();
   addBubble(data.reply || "AI error", "ai");
 }
+
+msg.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
 </script>
 
 </body>
