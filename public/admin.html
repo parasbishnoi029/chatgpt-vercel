@@ -1,107 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Admin Dashboard – BrainAura</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+import { MongoClient } from "mongodb";
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0f0f1a;
-  color: #fff;
-  padding: 20px;
-}
+let client;
 
-h1 {
-  margin-bottom: 10px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid #333;
-  text-align: left;
-}
-
-th {
-  background: #16162a;
-}
-
-.logout {
-  background: #6a5cff;
-  border: none;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-</style>
-</head>
-
-<body>
-
-<h1>Admin Dashboard</h1>
-<p>Login activity (email & time)</p>
-
-<button class="logout" onclick="logout()">Logout</button>
-
-<table>
-  <thead>
-    <tr>
-      <th>Email</th>
-      <th>Role</th>
-      <th>Login Time</th>
-    </tr>
-  </thead>
-  <tbody id="rows"></tbody>
-</table>
-
-<script>
-
-const email = localStorage.email;
-
-if (email !== "admin@brainaura.com") {
-  alert("Not authorized");
-  location.href = "/";
-}
-
-
-fetch("/api/admin", {
-  headers: {
-    Authorization: "Bearer " + token
+async function getDB() {
+  if (!client) {
+    client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
   }
-})
-.then(res => res.json())
-.then(data => {
-  const rows = document.getElementById("rows");
-  rows.innerHTML = "";
-
-  data.forEach(item => {
-    rows.innerHTML += `
-      <tr>
-        <td>${item.email}</td>
-        <td>${item.role}</td>
-        <td>${new Date(item.time).toLocaleString()}</td>
-      </tr>
-    `;
-  });
-})
-.catch(() => {
-  alert("Failed to load admin data");
-});
-
-function logout() {
-  localStorage.clear();
-  location.href = "/";
+  return client.db("brainAura");
 }
-</script>
 
-</body>
-</html>
+export default async function handler(req, res) {
+  try {
+    const db = await getDB();
+    const logs = db.collection("login_logs");
+
+    const data = await logs
+      .find({})
+      .sort({ time: -1 })
+      .limit(100)
+      .toArray();
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load admin data" });
+  }
+}
