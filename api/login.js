@@ -1,3 +1,15 @@
+import { MongoClient } from "mongodb";
+
+let client;
+
+async function getDB() {
+  if (!client) {
+    client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+  }
+  return client.db("brainAura");
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -5,26 +17,39 @@ export default async function handler(req, res) {
     }
 
     const { email, password } = req.body;
-
     if (!email) {
       return res.status(400).json({ error: "Email required" });
     }
 
-    // ADMIN
-    if (email === "admin@brainaura.com") {
-      if (password !== "admin123") {
+    const db = await getDB();
+    const logs = db.collection("login_logs");
+
+    // 🔐 ADMIN
+    if (email === process.env.ADMIN_EMAIL) {
+      if (password !== process.env.ADMIN_PASSWORD) {
         return res.status(401).json({ error: "Wrong admin password" });
       }
+
+      await logs.insertOne({
+        email,
+        role: "admin",
+        time: new Date()
+      });
+
       return res.json({ role: "admin" });
     }
 
-    // NORMAL USER
+    // 👤 NORMAL USER
+    await logs.insertOne({
+      email,
+      role: "user",
+      time: new Date()
+    });
+
     return res.json({ role: "user" });
 
   } catch (err) {
-    return res.status(500).json({
-      error: "Server crash",
-      details: err.message
-    });
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 }
