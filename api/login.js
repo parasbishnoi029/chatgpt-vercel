@@ -1,4 +1,4 @@
-const logs = []; // 🔴 IN-MEMORY STORE
+global.loginLogs = global.loginLogs || [];
 
 export default function handler(req, res) {
   if (req.method !== "POST") {
@@ -16,7 +16,7 @@ export default function handler(req, res) {
       return res.status(401).json({ error: "Wrong admin password" });
     }
 
-    logs.push({
+    global.loginLogs.push({
       email,
       role: "admin",
       time: new Date()
@@ -25,8 +25,8 @@ export default function handler(req, res) {
     return res.json({ role: "admin" });
   }
 
-  // USER
-  logs.push({
+  // NORMAL USER
+  global.loginLogs.push({
     email,
     role: "user",
     time: new Date()
@@ -34,5 +34,3 @@ export default function handler(req, res) {
 
   return res.json({ role: "user" });
 }
-
-export { logs };
