@@ -1,23 +1,114 @@
-<script>
-const email = localStorage.email;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Admin Dashboard - BrainAura</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#0f0f1a;
+  color:#fff;
+}
+header {
+  padding:16px;
+  background:#16162a;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+button {
+  background:#6a5cff;
+  border:none;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:6px;
+  cursor:pointer;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:20px;
+}
+th, td {
+  padding:12px;
+  border-bottom:1px solid #2a2a44;
+  text-align:left;
+}
+th {
+  background:#16162a;
+}
+.container {
+  padding:20px;
+}
+</style>
+</head>
 
+<body>
+
+<header>
+  <h2>BrainAura Admin</h2>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+  <h3>Login Records</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Login Time</th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+      <tr><td colspan="3">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+/* 🔐 SIMPLE ADMIN AUTH (EMAIL BASED) */
+const email = localStorage.email;
 if (email !== "admin@brainaura.com") {
   alert("Not authorized");
   location.href = "/";
 }
 
+/* 🚪 LOGOUT */
+function logout() {
+  localStorage.clear();
+  location.href = "/";
+}
+
+/* 📡 LOAD LOGIN DATA */
 fetch("/api/admin")
   .then(res => res.json())
   .then(data => {
-    const table = document.getElementById("table");
-    data.forEach(row => {
-      table.innerHTML += `
-        <tr>
-          <td>${row.email}</td>
-          <td>${row.role}</td>
-          <td>${new Date(row.time).toLocaleString()}</td>
-        </tr>
+    const rows = document.getElementById("rows");
+    rows.innerHTML = "";
+
+    if (!data.length) {
+      rows.innerHTML = "<tr><td colspan='3'>No data yet</td></tr>";
+      return;
+    }
+
+    data.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.email}</td>
+        <td>${item.role}</td>
+        <td>${new Date(item.time).toLocaleString()}</td>
       `;
+      rows.appendChild(tr);
     });
+  })
+  .catch(() => {
+    document.getElementById("rows").innerHTML =
+      "<tr><td colspan='3'>Failed to load data</td></tr>";
   });
 </script>
+
+</body>
+</html>
