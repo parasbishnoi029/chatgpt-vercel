@@ -1,5 +1,4 @@
-import { logs } from "./login";
-
 export default function handler(req, res) {
-  res.json(logs.reverse());
+  const logs = global.loginLogs || [];
+  res.json(logs.slice().reverse());
 }
