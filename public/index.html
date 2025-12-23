@@ -116,6 +116,7 @@ footer { display:flex; gap:8px; }
       <div id="avatar" class="avatar">U</div>
       <div>
         <strong id="userEmail"></strong><br>
+        <small id="runningTime" style="color:var(--muted)"></small><br>
         <small style="color:var(--muted)">BrainAura AI</small>
       </div>
     </div>
@@ -144,6 +145,7 @@ const chat     = document.getElementById("chat");
 const msg      = document.getElementById("msg");
 const emailEl  = document.getElementById("email");
 const avatarEl = document.getElementById("avatar");
+const timeEl   = document.getElementById("runningTime");
 
 const sessionId =
   localStorage.sessionId ||
@@ -196,11 +198,17 @@ function showApp() {
   loginDiv.style.display = "none";
   appDiv.style.display = "flex";
 
-  const time = new Date().toLocaleString();
-  document.getElementById("userEmail").innerText =
-    localStorage.email + " • " + time;
-
+  document.getElementById("userEmail").innerText = localStorage.email;
   avatarEl.innerText = localStorage.email[0].toUpperCase();
+
+  startRunningTime();
+}
+
+function startRunningTime() {
+  setInterval(() => {
+    const now = new Date();
+    timeEl.innerText = "Current time: " + now.toLocaleTimeString();
+  }, 1000);
 }
 
 function logout() {
